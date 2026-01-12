@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="google-site-verification" content="pwteHw44Ax3N2B1zkFzVJB7NIK0-xgQGRihK_vtZTF4" />
+    <title>Cloud Code Compiler // Amit Dutta</title>
+	<link rel="canonical" href="https://compiler.amit.is-a.dev/" />
+    <link rel="icon" type="image/x-icon" href="https://compiler.amit.is-a.dev/logo.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        :root {
+            --bg-main: #050505;
+            --accent: #bef264; /* Lime 300 */
+            --text-muted: #737373;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: #f5f5f5;
+            overflow-x: hidden;
+        }
+
+        /* Portfolio Aesthetic */
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-heading { font-family: 'Space Grotesk', sans-serif; }
+        
+        /* Noise Overlay */
+        .bg-noise {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 0; opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* CRT Scanline */
+        .crt-scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 2px;
+            background: rgba(190, 242, 100, 0.1); opacity: 0.5;
+            pointer-events: none; z-index: 50;
+            animation: scanline 8s linear infinite;
+        }
+        @keyframes scanline { 0% { top: -10vh; } 100% { top: 110vh; } }
+
+        /* Compiler Card Styling */
+        .compiler-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+        }
+
+        .compiler-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(190, 242, 100, 0.1);
+        }
+
+        .compiler-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.06), transparent 40%);
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        .compiler-card:hover::before {
+            opacity: 1;
+        }
+
+        .icon-container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .compiler-card:hover .icon-container {
+            border-color: var(--accent);
+            background: rgba(190, 242, 100, 0.1);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--accent);
+            color: #000;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #d9f99d; /* Lime 200 */
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(190, 242, 100, 0.3);
+        }
+
+        /* Animations */
+        .floating-code {
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.2;
+            pointer-events: none;
+            animation: float 10s infinite ease-in-out;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* Social Links */
+        .social-link {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: #a3a3a3;
+            transition: all 0.3s ease;
+        }
+        .social-link:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(-3px);
+        }
+
+        ::selection { background: var(--accent); color: black; }
+        
+        .typewriter h1 {
+            border-right: none;
+        }
+        
+        /* Fade in animation for "Create." */
+        .fade-in-create {
+            animation: fadeIn 1s ease-in forwards;
+            opacity: 0;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-lime-300 selection:text-black">
+
+    <div class="bg-noise"></div>
+    <div class="crt-scanline"></div>
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div class="floating-code" style="top: 15%; left: 10%; animation-delay: 0s;">print("Hello World")</div>
+        <div class="floating-code" style="top: 25%; right: 15%; animation-delay: 2s;">#include &lt;stdio.h&gt;</div>
+        <div class="floating-code" style="bottom: 20%; left: 20%; animation-delay: 4s;">std::cout << "Code";</div>
+        <div class="floating-code" style="bottom: 30%; right: 10%; animation-delay: 1s;">const int MAX = 100;</div>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="relative min-h-screen flex flex-col items-center justify-center p-6 z-10">
+        
+        <header class="text-center mb-16" data-aos="fade-up">
+            <div class="inline-block mb-4 px-4 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm">
+                <span class="text-xs font-mono text-lime-300 tracking-wider">/// REAL-TIME CLOUD COMPILER</span>
+            </div>
+            <div class="typewriter max-w-4xl mx-auto">
+                <h1 class="text-4xl sm:text-6xl md:text-7xl font-heading font-bold text-white mb-6 tracking-tight leading-tight">
+                    <span id="type-text"></span><br />
+                    <span id="create-text" class="text-lime-300 fade-in-create hidden">Create.</span>
+                </h1>
+            </div>
+            <p class="sub-text-fade opacity-0 text-base sm:text-lg md:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed mt-4 font-light">
+                Experience powerful, server-side code execution with low-latency WebSocket connections. No simulations, just pure performance.
+            </p>
+        </header>
+
+        <!-- Compiler Cards -->
+        <main class="w-full max-w-6xl mx-auto px-4" data-aos="fade-up" data-aos-delay="200">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="compiler-grid">
+                
+                <!-- C Compiler -->
+                <a href="./c.html" class="compiler-card p-8 group block">
+                    <div class="icon-container w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <span class="font-heading font-bold text-2xl text-white">C</span>
+                    </div>
+                    <h2 class="text-2xl font-heading font-bold text-white mb-2 group-hover:text-lime-300 transition-colors">Standard C</h2>
+                    <p class="text-sm text-neutral-500 mb-6 leading-relaxed">
+                        Compile standard C programs on a remote server using GCC. Supports pointers and memory logic.
+                    </p>
+                    <div class="flex items-center text-xs font-mono text-lime-300 uppercase tracking-widest">
+                        Launch <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </a>
+
+                <!-- C++ Compiler -->
+                <a href="./cpp.html" class="compiler-card p-8 group block">
+                    <div class="icon-container w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <span class="font-heading font-bold text-2xl text-white">C++</span>
+                    </div>
+                    <h2 class="text-2xl font-heading font-bold text-white mb-2 group-hover:text-lime-300 transition-colors">Modern C++</h2>
+                    <p class="text-sm text-neutral-500 mb-6 leading-relaxed">
+                        Execute C++ code via G++. Features standard input/output streaming and STL support.
+                    </p>
+                    <div class="flex items-center text-xs font-mono text-lime-300 uppercase tracking-widest">
+                        Launch <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </a>
+
+                <!-- Python Compiler -->
+                <a href="./python.html" class="compiler-card p-8 group block">
+                    <div class="icon-container w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fab fa-python text-2xl text-white"></i>
+                    </div>
+                    <h2 class="text-2xl font-heading font-bold text-white mb-2 group-hover:text-lime-300 transition-colors">Python 3</h2>
+                    <p class="text-sm text-neutral-500 mb-6 leading-relaxed">
+                        Full Python 3 environment with automatic package installation (pip) and interactive shell.
+                    </p>
+                    <div class="flex items-center text-xs font-mono text-lime-300 uppercase tracking-widest">
+                        Launch <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </a>
+
+            </div>
+            
+            <div class="text-center mt-8">
+                <p class="text-[10px] font-mono text-neutral-600 uppercase tracking-widest">More languages loading...</p>
+            </div>
+        </main>
+
+        <a href="#features" class="absolute bottom-10 animate-bounce text-neutral-600 hover:text-white transition-colors">
+            <i class="fas fa-chevron-down text-xl"></i>
+        </a>
+    </div>
+
+    <!-- Features Section -->
+    <section id="features" class="py-32 px-6 border-t border-white/5 bg-black/20 z-10">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-20" data-aos="fade-up">
+                <h2 class="text-3xl sm:text-4xl font-heading font-bold text-white mb-4">Engineered for <span class="text-lime-300">Performance</span></h2>
+                <p class="text-neutral-400 max-w-xl mx-auto">A robust platform designed for real development tasks.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="compiler-card p-8" data-aos="fade-up" data-aos-delay="100">
+                    <i class="fas fa-server text-2xl text-lime-300 mb-6"></i>
+                    <h3 class="text-xl font-bold text-white mb-3">Real Backend</h3>
+                    <p class="text-sm text-neutral-500 leading-relaxed">Code is executed on a live Linux server instance, ensuring accurate runtime behavior.</p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="compiler-card p-8" data-aos="fade-up" data-aos-delay="200">
+                    <i class="fas fa-bolt text-2xl text-lime-300 mb-6"></i>
+                    <h3 class="text-xl font-bold text-white mb-3">Low Latency</h3>
+                    <p class="text-sm text-neutral-500 leading-relaxed">WebSockets provide a persistent connection for instant input/output streaming.</p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="compiler-card p-8" data-aos="fade-up" data-aos-delay="300">
+                    <i class="fas fa-box-open text-2xl text-lime-300 mb-6"></i>
+                    <h3 class="text-xl font-bold text-white mb-3">Auto-Pip Install</h3>
+                    <p class="text-sm text-neutral-500 leading-relaxed">The server detects missing Python libraries and installs them on the fly.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Generator Section -->
+    <section class="py-32 px-6 border-t border-white/5 z-10">
+        <div class="max-w-4xl mx-auto text-center" data-aos="fade-up">
+            <h2 class="text-3xl font-heading font-bold text-white mb-8">Generate Code Instantly</h2>
+            
+            <div class="compiler-card p-1 rounded-2xl bg-gradient-to-br from-white/10 to-transparent p-[1px]">
+                <div class="bg-[#0a0a0a] rounded-2xl p-8">
+                    <textarea id="ai-prompt-input" class="w-full h-32 bg-transparent text-white font-mono text-sm placeholder-neutral-600 focus:outline-none resize-none" placeholder="// Describe the function you need...&#10;e.g. Write a Python script to scrape a website using BeautifulSoup"></textarea>
+                    <div class="flex justify-between items-center mt-6 border-t border-white/10 pt-6">
+                        <span class="text-xs text-neutral-500 font-mono">POWERED BY GEMINI</span>
+                        <button id="ai-generate-btn" class="btn-primary py-2 px-6 rounded-lg text-sm uppercase tracking-wide">
+                            Generate <i class="fas fa-sparkles ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ai-response-container" class="mt-8 hidden text-left">
+                <div class="compiler-card p-6 bg-[#0a0a0a]">
+                    <pre id="ai-response-text" class="text-sm font-mono text-neutral-300 whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-white/5 z-10 bg-black/40">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            
+            <!-- Documentation Link Added Here -->
+            <div class="mb-8">
+                <a href="./docs.html" class="inline-flex items-center gap-2 text-sm font-mono text-neutral-500 hover:text-lime-300 transition-colors uppercase tracking-widest border border-white/10 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10">
+                    <i class="fas fa-book"></i> Read Documentation
+                </a>
+            </div>
+
+            <h3 class="text-xl font-heading font-bold text-white mb-8">Connect with Me</h3>
+            
+            <div class="flex flex-wrap justify-center gap-4 mb-12">
+                <a href="https://github.com/notamitgamer" target="_blank" class="social-link w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://linkedin.com/in/notamitgamer" target="_blank" class="social-link w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+                <a href="https://twitter.com/notamitgamer" target="_blank" class="social-link w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fab fa-twitter"></i>
+                </a>
+                <a href="https://instagram.com/notamitgamer" target="_blank" class="social-link w-12 h-12 rounded-full flex items-center justify-center text-lg">
+                    <i class="fab fa-instagram"></i>
+                </a>
+            </div>
+
+            <div class="text-neutral-600 text-sm font-mono space-y-2">
+                <p>&copy; 2025 Amit Dutta. All rights reserved.</p>
+                <p><a href="https://amit.is-a.dev" class="hover:text-lime-300 transition-colors">amit.is-a.dev</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            AOS.init({
+                duration: 800,
+                once: true,
+                offset: 50
+            });
+
+            // Card Hover Effect (Mouse tracking)
+            const cards = document.querySelectorAll('.compiler-card');
+            document.getElementById('compiler-grid').onmousemove = e => {
+                for(const card of cards) {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    card.style.setProperty('--mouse-x', `${x}px`);
+                    card.style.setProperty('--mouse-y', `${y}px`);
+                }
+            };
+
+            // Typewriter logic
+            const typeTextElement = document.getElementById('type-text');
+            const createTextElement = document.getElementById('create-text');
+            const textToType = "Code. Compile.";
+            let i = 0;
+            const speed = 75; // ms per char
+
+            function typeWriter() {
+                if (i < textToType.length) {
+                    typeTextElement.textContent += textToType.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, speed);
+                } else {
+                    // Typing done, show "Create." with fade-in
+                    createTextElement.classList.remove('hidden');
+                    
+                    // Trigger subtext fade
+                    document.querySelector('.sub-text-fade').style.animation = 'fadeInDown 2s ease-in-out forwards 0.5s';
+                }
+            }
+            
+            // Start typing after a short delay
+            setTimeout(typeWriter, 500);
+
+            // AI Generator Logic
+            const generateBtn = document.getElementById('ai-generate-btn');
+            const promptInput = document.getElementById('ai-prompt-input');
+            const responseContainer = document.getElementById('ai-response-container');
+            const responseText = document.getElementById('ai-response-text');
+
+            generateBtn.addEventListener('click', async () => {
+                const userPrompt = promptInput.value.trim();
+                if (!userPrompt) return;
+                
+                generateBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+                generateBtn.disabled = true;
+                responseContainer.classList.remove('hidden');
+                responseText.textContent = '// Thinking...';
+                
+                const systemPrompt = "You are an expert code assistant. Provide concise, clean, and well-commented code based on the user request. Use markdown format.";
+                const apiKey = "AIzaSyAi1FdeIJ4PzihkCrOGztdVHIyJ7xIoVQ0"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userPrompt }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "// Error: No response generated.";
+                    responseText.textContent = text;
+                } catch (error) {
+                    responseText.textContent = `// Error: ${error.message}`;
+                } finally {
+                    generateBtn.innerHTML = 'Generate <i class="fas fa-sparkles ml-2"></i>';
+                    generateBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
