@@ -99,6 +99,7 @@
                 <a href="#communication" class="nav-link font-mono text-sm">WebSocket Protocol</a>
                 <a href="#python-engine" class="nav-link font-mono text-sm">Python Engine</a>
                 <a href="#cpp-engine" class="nav-link font-mono text-sm">C / C++ Engine</a>
+                <a href="#ai-debug" class="nav-link font-mono text-sm text-lime-300">New: AI Auto-Debug</a>
                 <a href="#sharing" class="nav-link font-mono text-sm">Sharing & Persistence</a>
                 <a href="#security" class="nav-link font-mono text-sm">Security & Sandbox</a>
                 <a href="#privacy" class="nav-link font-mono text-sm">Privacy & Data</a>
@@ -110,7 +111,9 @@
                 <div class="flex flex-wrap gap-2">
                     <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">aiohttp</span>
                     <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">Firebase</span>
-                    <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">GCC 11</span>
+                    <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">Gemini AI</span>
+                    <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">Render</span>
+                    <span class="text-xs px-2 py-1 rounded bg-black border border-white/10 text-lime-300 font-mono">WebSocket</span>
                 </div>
             </div>
         </aside>
@@ -238,41 +241,52 @@ def check_and_install_packages(code):
                 </p>
             </section>
             
+            <!-- AI Auto-Debug -->
+            <section id="ai-debug" class="doc-section">
+                <h2 class="text-2xl font-heading font-bold text-lime-300 mb-6 flex items-center">
+                    <span class="mr-3">05.</span> AI Auto-Debugger (New)
+                </h2>
+                <p class="text-neutral-300 mb-4">
+                    The latest version of the compiler includes an intelligent debugging assistant powered by <strong>Google Gemini 2.5 Flash</strong>. This feature automatically detects runtime errors and compilation failures in real-time.
+                </p>
+                
+                <h3 class="text-lg font-bold text-white mt-6 mb-2">How it works</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
+                    <div class="p-6 rounded-xl bg-white/5 border border-white/10">
+                        <h4 class="text-white font-bold mb-2">1. Error Detection</h4>
+                        <p class="text-sm text-neutral-400 mb-2">
+                            The frontend monitors the terminal output stream for keywords like <code>error:</code>, <code>warning:</code>, or <code>Traceback</code>. When detected, a "Ask AI" prompt appears overlaying the terminal.
+                        </p>
+                    </div>
+                    <div class="p-6 rounded-xl bg-white/5 border border-white/10">
+                        <h4 class="text-white font-bold mb-2">2. Contextual Analysis</h4>
+                        <p class="text-sm text-neutral-400 mb-2">
+                            When the user requests help, the system packages:
+                        </p>
+                        <ul class="list-disc list-inside text-xs text-neutral-500 space-y-1">
+                            <li>The full source code.</li>
+                            <li>The exact error message from the terminal.</li>
+                            <li>The language context.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-l-4 border-lime-300 bg-white/5 mt-4">
+                    <p class="text-sm text-neutral-300">
+                        <strong>Privacy Note:</strong> Your code is sent to the AI API <em>only</em> when you explicitly click the "Ask AI" link. The data is processed ephemerally and returned as a JSON object containing an explanation and the corrected code block.
+                    </p>
+                </div>
+            </section>
+            
             <!-- Sharing & Persistence -->
             <section id="sharing" class="doc-section">
                 <h2 class="text-2xl font-heading font-bold text-lime-300 mb-6 flex items-center">
-                    <span class="mr-3">05.</span> Sharing & Persistence
+                    <span class="mr-3">06.</span> Sharing & Persistence
                 </h2>
                 <p class="text-neutral-300 mb-4">
                     The sharing functionality leverages <strong>Firebase Firestore</strong> to provide persistent access to code and execution results. This ensures that sharing a link not only loads the correct source code but also restores the exact terminal state seen at the moment of sharing.
                 </p>
                 
-                <h3 class="text-lg font-bold text-white mt-6 mb-2">How Sharing Works</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
-                    <div class="p-6 rounded-xl bg-white/5 border border-white/10">
-                        <h4 class="text-white font-bold mb-2">1. Snapshot Creation</h4>
-                        <p class="text-sm text-neutral-400 mb-2">
-                            When the "Share" button is clicked, the system captures:
-                        </p>
-                        <ul class="list-disc list-inside text-xs text-neutral-500 space-y-1">
-                            <li>The complete source code from the editor.</li>
-                            <li>The current terminal output (stripped of system messages).</li>
-                            <li>Metadata (language, timestamp).</li>
-                        </ul>
-                    </div>
-                    <div class="p-6 rounded-xl bg-white/5 border border-white/10">
-                        <h4 class="text-white font-bold mb-2">2. Storage & Retrieval</h4>
-                        <p class="text-sm text-neutral-400 mb-2">
-                            This data is stored in a Firestore document under a unique 7-character ID.
-                        </p>
-                        <ul class="list-disc list-inside text-xs text-neutral-500 space-y-1">
-                            <li><strong>Write:</strong> Uses Anonymous Auth to securely write to the DB.</li>
-                            <li><strong>Read:</strong> The URL `?share=ID` fetches this document.</li>
-                            <li><strong>Restore:</strong> The editor fills with code, and the terminal replays the saved output.</li>
-                        </ul>
-                    </div>
-                </div>
-
                 <div class="code-block">
                     <pre><code class="language-javascript">// Data Structure in Firestore
 {
@@ -287,7 +301,7 @@ def check_and_install_packages(code):
             <!-- Security -->
             <section id="security" class="doc-section">
                 <h2 class="text-2xl font-heading font-bold text-lime-300 mb-6 flex items-center">
-                    <span class="mr-3">06.</span> Security & Limitations
+                    <span class="mr-3">07.</span> Security & Limitations
                 </h2>
                 <p class="text-neutral-300 mb-4">
                     The current implementation runs code directly on the host instance. While effective for a portfolio demonstration or trusted environment, this setup is <strong>not sandboxed</strong>.
@@ -315,7 +329,7 @@ def check_and_install_packages(code):
             <!-- Privacy & Data Handling -->
             <section id="privacy" class="doc-section">
                 <h2 class="text-2xl font-heading font-bold text-lime-300 mb-6 flex items-center">
-                    <span class="mr-3">07.</span> Privacy & Data Handling
+                    <span class="mr-3">08.</span> Privacy & Data Handling
                 </h2>
                 <p class="text-neutral-300 mb-4">
                     We believe in complete transparency regarding how your data is handled. As a demonstration platform, we prioritize privacy and ephemeral execution.
@@ -345,7 +359,7 @@ def check_and_install_packages(code):
             <!-- Legal & Disclaimer -->
             <section id="disclaimer" class="doc-section">
                 <h2 class="text-2xl font-heading font-bold text-lime-300 mb-6 flex items-center">
-                    <span class="mr-3">08.</span> Legal & Disclaimer
+                    <span class="mr-3">09.</span> Legal & Disclaimer
                 </h2>
                 <div class="p-6 rounded-xl border border-red-500/20 bg-red-500/5">
                     <p class="text-neutral-300 mb-4">

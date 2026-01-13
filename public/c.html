@@ -145,6 +145,67 @@
             70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+
+        /* AI Text Overlay */
+        .ai-overlay {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            z-index: 60;
+            display: none;
+            backdrop-filter: blur(4px);
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .ai-overlay.visible { display: flex; align-items: center; gap: 8px; }
+        
+        .ai-link {
+            color: #fff;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .ai-link:hover { color: #bef264; text-decoration-style: solid; }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* AI Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            z-index: 200; display: none; align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal-content {
+            background: #0f0f0f;
+            border: 1px solid var(--accent);
+            width: 90%; max-width: 600px;
+            max-height: 80vh;
+            border-radius: 12px;
+            display: flex; flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-lime-300 selection:text-black">
@@ -152,6 +213,59 @@
     <div class="bg-noise"></div>
     <div class="crt-scanline"></div>
     <div id="toast" class="toast">Link Copied to Clipboard!</div>
+
+    <!-- AI Overlay in Terminal -->
+    <div id="ai-suggestion" class="ai-overlay">
+        <i class="fas fa-exclamation-triangle text-red-500"></i>
+        <span>Error detected. <span id="ask-ai-link" class="ai-link">Ask AI</span> to fix it.</span>
+    </div>
+
+    <!-- AI Fix Modal -->
+    <div id="ai-modal" class="modal-overlay">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="bg-white/5 px-6 py-4 border-b border-white/10 flex justify-between items-center">
+                <h3 class="font-heading font-bold text-lg text-lime-300 flex items-center gap-2">
+                    <i class="fas fa-robot"></i> AI Diagnosis
+                </h3>
+                <button id="close-modal" class="text-neutral-500 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+                <div id="ai-loading" class="hidden flex flex-col items-center justify-center py-8 gap-4">
+                    <div class="pulse-dot connected" style="width: 12px; height: 12px;"></div>
+                    <p class="font-mono text-neutral-400 text-sm animate-pulse">Analyzing compile error...</p>
+                </div>
+
+                <div id="ai-result" class="hidden space-y-4">
+                    <div>
+                        <h4 class="font-mono text-xs uppercase text-neutral-500 mb-2">Explanation</h4>
+                        <p id="ai-explanation" class="text-sm text-neutral-200 leading-relaxed font-sans"></p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-mono text-xs uppercase text-neutral-500 mb-2">Suggested Fix</h4>
+                        <div class="relative group">
+                            <pre id="ai-code-preview" class="bg-black/30 border border-white/10 p-3 rounded text-xs font-mono text-lime-100 overflow-x-auto custom-scrollbar"></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="ai-error-msg" class="hidden text-red-400 text-sm font-mono text-center py-4"></div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="bg-white/5 px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+                <button id="cancel-fix-btn" class="px-4 py-2 rounded text-xs font-mono font-bold uppercase text-neutral-400 hover:text-white hover:bg-white/10 transition-all">Dismiss</button>
+                <button id="apply-fix-btn" disabled class="bg-lime-300/10 hover:bg-lime-300 hover:text-black text-lime-300 border border-lime-300/20 px-4 py-2 rounded text-xs font-mono font-bold uppercase transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-check"></i> Apply Fix
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Header (Responsive) -->
     <header class="h-auto md:h-16 flex flex-col md:flex-row items-center justify-between px-4 py-3 md:px-6 shrink-0 border-b border-white/10 z-20 bg-neutral-900/50 backdrop-blur-md gap-3 md:gap-4">
@@ -225,14 +339,10 @@ int main() {
 }</textarea>
             </div>
             
-            <!-- AI Fix Button -->
-            <button id="ai-fix-btn" class="hidden absolute bottom-4 right-4 bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-mono transition-all items-center gap-2 backdrop-blur-md z-20">
-                <i class="fas fa-magic"></i> Fix with AI
-            </button>
         </div>
 
         <!-- Terminal -->
-        <div class="flex-1 flex flex-col h-[40%] md:h-auto min-h-0 bg-[#050505]">
+        <div class="flex-1 flex flex-col h-[40%] md:h-auto min-h-0 bg-[#050505] relative">
             <div class="bg-black/20 px-4 py-2 text-[10px] font-mono text-lime-300 uppercase border-b border-white/10 flex justify-between items-center shrink-0">
                 <span>OUT // TERMINAL</span>
                 <span class="text-neutral-600">XTERM.JS</span>
@@ -264,12 +374,10 @@ int main() {
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // Attempt initial sign-in, but don't crash if it fails (restricted op)
         signInAnonymously(auth).catch((error) => {
-            console.warn("Auto-Auth failed (likely disabled in console). App will try unauthenticated access.", error.code);
+            console.warn("Auto-Auth failed. App will try unauthenticated access.", error.code);
         });
 
-        // --- Helper: Generate ID ---
         function generateId(length = 7) {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';
@@ -284,16 +392,29 @@ int main() {
         const resetBtn = document.getElementById('reset-btn');
         const shareBtn = document.getElementById('share-btn');
         const copyBtn = document.getElementById('copy-btn');
-        const aiFixBtn = document.getElementById('ai-fix-btn');
         const connDot = document.getElementById('conn-dot');
         const connectionStatus = document.getElementById('connection-status');
         const codeInput = document.getElementById('code-input');
         const toast = document.getElementById('toast');
+        
+        // AI Elements
+        const aiSuggestion = document.getElementById('ai-suggestion');
+        const askAiLink = document.getElementById('ask-ai-link');
+        const aiModal = document.getElementById('ai-modal');
+        const closeModal = document.getElementById('close-modal');
+        const cancelFixBtn = document.getElementById('cancel-fix-btn');
+        const applyFixBtn = document.getElementById('apply-fix-btn');
+        const aiLoading = document.getElementById('ai-loading');
+        const aiResult = document.getElementById('ai-result');
+        const aiExplanation = document.getElementById('ai-explanation');
+        const aiCodePreview = document.getElementById('ai-code-preview');
+        const aiErrorMsg = document.getElementById('ai-error-msg');
 
         // --- State ---
         let socket = null;
         let currentLine = ""; 
         let startTime = 0;
+        let lastSuggestedCode = "";
 
         // --- EDITOR LOGIC ---
         codeInput.addEventListener('keydown', function(e) {
@@ -334,7 +455,6 @@ int main() {
             const sharedCodeOld = params.get('code');
 
             if (shareId) {
-                // Fetch from Firebase
                 try {
                     toast.textContent = "Loading shared code...";
                     toast.classList.add('show');
@@ -345,31 +465,22 @@ int main() {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         codeInput.value = data.code;
-                        
-                        // Restore Output if it exists
                         if (data.output && term) {
                             term.write('\r\n\x1b[38;2;115;115;115m> PREVIOUS OUTPUT:\x1b[0m\r\n');
                             term.write(data.output.replace(/\n/g, '\r\n'));
                             term.write('\r\n\x1b[38;2;115;115;115m> ----------------\x1b[0m\r\n');
                         }
-                        
                         toast.textContent = "Code loaded successfully";
                     } else {
                         toast.textContent = "Shared code not found";
                     }
                     setTimeout(() => toast.classList.remove('show'), 3000);
                 } catch (e) {
-                    console.error("Fetch error:", e);
-                    // More descriptive error for user
-                    if (e.code === 'permission-denied') {
-                         toast.textContent = "Error: Database Access Denied";
-                    } else {
-                         toast.textContent = "Error loading code";
-                    }
-                    setTimeout(() => toast.classList.remove('show'), 3000);
+                     console.error("Fetch error:", e);
+                     toast.textContent = "Error loading code";
+                     setTimeout(() => toast.classList.remove('show'), 3000);
                 }
             } else if (sharedCodeOld) {
-                // Fallback for Base64
                 try { codeInput.value = atob(sharedCodeOld); } 
                 catch(e) {}
             }
@@ -426,18 +537,6 @@ int main() {
             return text.trim();
         }
 
-        // Custom Key Handler for Ctrl+C Copy
-        term.attachCustomKeyEventHandler((arg) => {
-            if (arg.ctrlKey && arg.code === "KeyC" && arg.type === "keydown") {
-                const selection = term.getSelection();
-                if (selection) {
-                    fallbackCopyTextToClipboard(selection);
-                    return false; 
-                }
-            }
-            return true;
-        });
-
         term.write('\x1b[38;2;115;115;115m> SYSTEM READY.\r\n> ATTEMPTING CONNECTION...\x1b[0m\r\n');
 
         // --- WebSocket Logic ---
@@ -473,8 +572,9 @@ int main() {
                 if (msg.type === 'stdout') {
                     let text = msg.data;
                     
+                    // Trigger AI Overlay on Error
                     if (text.toLowerCase().includes("error:") || text.toLowerCase().includes("warning:")) {
-                        aiFixBtn.classList.remove('hidden');
+                        aiSuggestion.classList.add('visible');
                     }
 
                     if (!text.includes('\r')) {
@@ -482,11 +582,16 @@ int main() {
                     }
                     term.write(text);
                 } else if (msg.type === 'status') {
-                    // Detect "Program finished" signal from backend
                     if (msg.msg.includes("Program finished")) {
                         const duration = (Date.now() - startTime) / 1000;
                         term.write(`\r\n\x1b[38;2;115;115;115m[Finished in ${duration.toFixed(3)}s]\x1b[0m\r\n`);
+                    } else if (msg.msg === "Compilation Failed") {
+                         aiSuggestion.classList.add('visible');
                     }
+                } else if (msg.type === 'ai_response') {
+                    handleAiResponse(msg.data);
+                } else if (msg.type === 'ai_error') {
+                    showAiError(msg.msg);
                 }
             };
         }
@@ -498,7 +603,7 @@ int main() {
             document.activeElement.blur();
             term.reset();
             currentLine = ""; 
-            aiFixBtn.classList.add('hidden');
+            aiSuggestion.classList.remove('visible'); // Hide previous suggestions
             
             let code = codeInput.value;
             code = code.replace(/\u00A0/g, " ").replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
@@ -526,25 +631,76 @@ int main() {
             term.focus();
         });
 
-        // --- Reset Logic ---
-        resetBtn.addEventListener('click', () => {
-            term.reset();
-            currentLine = "";
-            term.write(`\x1b[38;2;190;242;100m> CONNECTION ESTABLISHED.\x1b[0m\r\n> ./a.out\r\n`);
+        // --- AI Feature Logic ---
+        
+        // 1. Open Modal and Request AI Fix
+        askAiLink.addEventListener('click', () => {
+            const errorContext = getTerminalContent();
+            const currentCode = codeInput.value;
+            
+            // UI Update
+            aiModal.classList.add('open');
+            aiLoading.classList.remove('hidden');
+            aiResult.classList.add('hidden');
+            aiErrorMsg.classList.add('hidden');
+            applyFixBtn.disabled = true;
+
+            // Send Request
+            socket.send(JSON.stringify({
+                type: 'ai_fix',
+                code: currentCode,
+                error: errorContext,
+                language: 'c'
+            }));
         });
 
-        // --- Share Functionality (Firebase) ---
+        // 2. Handle AI Response
+        function handleAiResponse(data) {
+            aiLoading.classList.add('hidden');
+            aiResult.classList.remove('hidden');
+            
+            aiExplanation.textContent = data.explanation;
+            aiCodePreview.textContent = data.fixed_code;
+            lastSuggestedCode = data.fixed_code;
+            
+            applyFixBtn.disabled = false;
+        }
+
+        // 3. Handle AI Error
+        function showAiError(msg) {
+            aiLoading.classList.add('hidden');
+            aiErrorMsg.textContent = msg;
+            aiErrorMsg.classList.remove('hidden');
+        }
+
+        // 4. Apply Fix
+        applyFixBtn.addEventListener('click', () => {
+            if (lastSuggestedCode) {
+                codeInput.value = lastSuggestedCode;
+                closeAiModal();
+                showToast("Fix Applied Successfully!");
+                aiSuggestion.classList.remove('visible');
+            }
+        });
+
+        // 5. Modal Controls
+        function closeAiModal() {
+            aiModal.classList.remove('open');
+        }
+        closeModal.addEventListener('click', closeAiModal);
+        cancelFixBtn.addEventListener('click', closeAiModal);
+        aiModal.addEventListener('click', (e) => {
+            if (e.target === aiModal) closeAiModal();
+        });
+
+
+        // --- Share Functionality ---
         shareBtn.addEventListener('click', async () => {
-            // Original Share icon animation
             const originalIcon = shareBtn.innerHTML;
             shareBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             shareBtn.disabled = true;
 
             try {
-                // Robust Auth Check: 
-                // 1. If not logged in, try to log in.
-                // 2. If login fails (restricted), proceed anyway (swallow error).
-                // 3. This allows "Test Mode" (open DB) to work even if Auth is disabled.
                 if (!auth.currentUser) {
                     try {
                         await signInAnonymously(auth);
@@ -554,24 +710,21 @@ int main() {
                 }
 
                 const code = codeInput.value;
-                const output = getTerminalContent(); // Capture output
+                const output = getTerminalContent(); 
                 const shareId = generateId();
                 
-                // Save to Firestore
                 await setDoc(doc(db, "shares", shareId), {
                     code: code,
                     language: 'c',
-                    output: output, // Store output
+                    output: output,
                     createdAt: new Date().toISOString()
                 });
 
-                // Generate URL
                 const url = new URL(window.location.href);
-                url.searchParams.delete('code'); // Remove legacy param
+                url.searchParams.delete('code');
                 url.searchParams.set('share', shareId);
                 const shareUrl = url.toString();
 
-                // Share or Copy
                 if (navigator.share) {
                     try {
                         await navigator.share({
@@ -580,7 +733,6 @@ int main() {
                             url: shareUrl
                         });
                     } catch (err) {
-                        // If canceled, still copy to clipboard as fallback
                         fallbackCopyTextToClipboard(shareUrl);
                     }
                 } else {
@@ -588,12 +740,7 @@ int main() {
                 }
             } catch (error) {
                 console.error("Share failed:", error);
-                if (error.code === 'permission-denied') {
-                    showToast("Share Failed: Access Denied");
-                    console.log("Tip: Enable Anonymous Auth in Firebase Console OR set Firestore rules to public.");
-                } else {
-                    showToast("Share Failed: " + error.message);
-                }
+                showToast("Share Failed");
             } finally {
                 shareBtn.innerHTML = originalIcon;
                 shareBtn.disabled = false;
@@ -631,8 +778,12 @@ int main() {
             document.body.removeChild(textArea);
         }
 
-        aiFixBtn.addEventListener('click', () => {
-            alert("AI Feature: Coming Soon via Backend Update");
+        // --- Reset Logic ---
+        resetBtn.addEventListener('click', () => {
+            term.reset();
+            currentLine = "";
+            aiSuggestion.classList.remove('visible');
+            term.write(`\x1b[38;2;190;242;100m> CONNECTION ESTABLISHED.\x1b[0m\r\n> ./a.out\r\n`);
         });
 
         // Terminal Input

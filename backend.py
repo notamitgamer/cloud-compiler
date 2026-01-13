@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp # Added missing import
 from aiohttp import web
 import json
 import subprocess
@@ -7,11 +8,14 @@ import sys
 import threading
 import re
 import importlib.util
-import platform  # <--- FIXED: Added missing import
+import platform 
 
 # ==================================================================================
 # CLOUD COMPILER SERVER (AIOHTTP) - RENDER COMPATIBLE
 # ==================================================================================
+
+# Get API Key from Environment
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 def install_package(package_name, ws=None, loop=None):
     """Attempt to install a python package via pip."""
@@ -43,13 +47,12 @@ def check_and_install_packages(code, ws=None, loop=None):
     from_imports = re.findall(r'^\s*from\s+(\w+)', code, re.MULTILINE)
     unique_packages = set(imports + from_imports)
     for pkg in unique_packages:
-        if pkg in ['os', 'sys', 'time', 'random', 'math', 'json', 'asyncio', 'threading', 'platform', 'subprocess', 're']:
+        if pkg in ['os', 'sys', 'time', 'random', 'math', 'json', 'asyncio', 'threading', 'platform', 'subprocess', 're', 'aiohttp']:
             continue
         install_package(pkg, ws, loop)
 
 async def handle_client(request):
     # --- HEALTH CHECK HANDLING ---
-    # Render sends HEAD/GET to root. If not a websocket upgrade, return OK.
     if request.headers.get("Upgrade", "").lower() != "websocket":
         return web.Response(text="OK")
 
@@ -64,23 +67,18 @@ async def handle_client(request):
     def read_stream(stream, loop):
         try:
             while True:
-                # Read 1 byte/char at a time
                 char = stream.read(1)
                 if not char:
                     break
-                # aiohttp's send_json is a coroutine
                 asyncio.run_coroutine_threadsafe(
                     ws.send_json({'type': 'stdout', 'data': char}), 
                     loop
                 )
             
-            # --- SIGNAL FINISH ---
-            # When stream ends (process exits), tell frontend
             asyncio.run_coroutine_threadsafe(
                 ws.send_json({'type': 'status', 'msg': 'Program finished'}), 
                 loop
             )
-
         except Exception:
             pass
 
@@ -136,6 +134,8 @@ async def handle_client(request):
                         
                         if compile_process.returncode != 0:
                             await ws.send_json({'type': 'stdout', 'data': f"Compilation Error:\n{compile_process.stderr}"})
+                            # Send explicit error status so frontend knows to show AI button
+                            await ws.send_json({'type': 'status', 'msg': 'Compilation Failed'})
                             continue 
                         
                         await ws.send_json({'type': 'status', 'msg': 'Running C Binary...'})
@@ -168,6 +168,7 @@ async def handle_client(request):
                         
                         if compile_process.returncode != 0:
                             await ws.send_json({'type': 'stdout', 'data': f"Compilation Error:\n{compile_process.stderr}"})
+                            await ws.send_json({'type': 'status', 'msg': 'Compilation Failed'})
                             continue
                         
                         await ws.send_json({'type': 'status', 'msg': 'Running C++ Binary...'})
@@ -196,12 +197,68 @@ async def handle_client(request):
                             process.stdin.flush()
                         except Exception:
                             pass
-            
+
+                # --- NEW: AI FIX HANDLER ---
+                elif data.get('type') == 'ai_fix':
+                    code = data.get('code')
+                    error_log = data.get('error')
+                    language = data.get('language', 'c') # Default to C, but respect frontend input
+                    
+                    if not GEMINI_API_KEY:
+                        await ws.send_json({'type': 'ai_error', 'msg': 'Server Error: GEMINI_API_KEY not configured.'})
+                        continue
+
+                    # Construct Prompt
+                    json_format = '{\n    "explanation": "Brief explanation of the bug (max 2 sentences)",\n    "fixed_code": "The full corrected code"\n}'
+                    
+                    prompt = (
+                        f"You are an expert {language.upper()} programming debugger.\n"
+                        f"CODE:\n{code}\n"
+                        f"ERROR OUTPUT:\n{error_log}\n"
+                        "TASK:\n"
+                        "1. Analyze the error.\n"
+                        "2. Provide a concise explanation.\n"
+                        "3. Provide the COMPLETE corrected code.\n"
+                        "RESPONSE FORMAT:\n"
+                        "Return ONLY a valid JSON object with no markdown formatting or backticks:\n"
+                        f"{json_format}"
+                    )
+
+                    try:
+                        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key={GEMINI_API_KEY}"
+                        
+                        async with aiohttp.ClientSession() as session:
+                            async with session.post(api_url, json={
+                                "contents": [{ "parts": [{ "text": prompt }] }],
+                                "generationConfig": { "responseMimeType": "application/json" }
+                            }) as resp:
+                                if resp.status != 200:
+                                    error_text = await resp.text()
+                                    await ws.send_json({'type': 'ai_error', 'msg': f"AI API Error: {error_text}"})
+                                else:
+                                    result = await resp.json()
+                                    # Extract text from Gemini response structure
+                                    content_text = result.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '{}')
+                                    
+                                    # Send back to client
+                                    await ws.send_json({
+                                        'type': 'ai_response', 
+                                        'data': json.loads(content_text)
+                                    })
+                                    
+                    except Exception as e:
+                         print(f"AI Error: {e}")
+                         await ws.send_json({'type': 'ai_error', 'msg': f"Server Processing Error: {str(e)}"})
+
             elif msg.type == web.WSMsgType.ERROR:
                 print(f'ws connection closed with exception {ws.exception()}')
 
     finally:
-        if process: process.kill()
+        if process: 
+            try:
+                process.kill()
+            except:
+                pass
         print("Client disconnected")
 
     return ws
@@ -209,7 +266,7 @@ async def handle_client(request):
 async def main():
     port = int(os.environ.get("PORT", 8765))
     app = web.Application()
-    # Route root path to the unified handler (handles both HTTP checks and WS upgrades)
+    # Route root path to the unified handler
     app.add_routes([web.get('/', handle_client)])
     
     runner = web.AppRunner(app)
