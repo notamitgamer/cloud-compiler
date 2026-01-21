@@ -268,12 +268,32 @@
                             Powered by the <strong>GNU Compiler Collection (GCC)</strong>.
                         </p>
                         <ul class="list-disc list-inside text-sm text-neutral-300 space-y-1">
-                            <li><strong>C Language:</strong> Compiles via `gcc source.c -o app`. Uses standard C11/C17 standards.</li>
-                            <li><strong>C++ Language:</strong> Compiles via `g++ source.cpp -o app`. Supports modern C++ standards.</li>
+                            <li><strong>C Language:</strong> Compiles via `gcc source.c -o app -lm -pthread`. Uses standard C11/C17 standards.</li>
+                            <li><strong>C++ Language:</strong> Compiles via `g++ source.cpp -o app -lm -pthread`. Supports modern C++ standards.</li>
+                            <li><strong>Extended Support:</strong> Explicitly links against the Math library (<code>-lm</code>) and Threads library (<code>-pthread</code>), enabling advanced mathematical operations and multi-threaded applications.</li>
                             <li><strong>Binary Execution:</strong> After compilation, the binary is immediately executed (`./app`), and output is piped to the WebSocket.</li>
                             <li><strong>Error Handling:</strong> Compilation errors (stderr) are captured and displayed in red in the terminal.</li>
                         </ul>
                     </div>
+
+                    <!-- NEW PERFORMANCE BLOCK -->
+                    <div class="p-6 bg-amber-500/5 rounded-xl border border-amber-500/20 mt-8">
+                        <div class="flex items-center gap-3 mb-4 text-amber-500">
+                            <i class="fas fa-tachometer-alt text-xl"></i>
+                            <h3 class="text-lg font-bold">Performance Notes</h3>
+                        </div>
+                        <div class="text-sm text-neutral-300 leading-relaxed space-y-4">
+                            <p>
+                                This project is currently hosted on <strong>Render’s free tier</strong>, which utilizes automatic sleep cycles to conserve resources. This introduces specific behavior patterns:
+                            </p>
+                            <ul class="list-disc list-inside space-y-2 text-neutral-400">
+                                <li><strong>Cold Starts:</strong> The first execution after a period of inactivity may take several seconds due to the container waking up.</li>
+                                <li><strong>Warm Execution:</strong> Subsequent runs happen in real-time and are significantly faster.</li>
+                                <li><strong>CPU Limits:</strong> CPU-intensive Python benchmarks are not representative of real-world interactive usage on this deployment.</li>
+                            </ul>
+                        </div>
+                    </div>
+
                 </div>
             </section>
 
@@ -395,9 +415,9 @@
                         </p>
                     </div>
                     <div class="p-4 border border-white/10 bg-white/5 rounded-lg">
-                        <h4 class="text-white font-bold mb-2">Ephemeral Filesystem</h4>
+                        <h4 class="text-white font-bold mb-2">Session Isolation</h4>
                         <p class="text-xs text-neutral-400">
-                            Scripts are written to temporary files (e.g., `temp_script.py`) which are unlinked/deleted immediately after execution or upon connection closure.
+                            Each client connection generates a unique <strong>UUID-based session directory</strong> (e.g., `temp_sessions/abc-123`). All temporary files are created within this isolated sandbox and are automatically wiped upon disconnection, preventing data leakage between concurrent users.
                         </p>
                     </div>
                 </div>

@@ -29,6 +29,9 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
+    <!-- LZ-String Compression -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
     <style>
         :root {
             --bg-main: #050505;
@@ -93,21 +96,42 @@
             background: rgba(255, 255, 255, 0.03) !important;
         }
 
-        /* Scrollbar styling */
-        .CodeMirror-scroll::-webkit-scrollbar, 
-        .xterm-viewport::-webkit-scrollbar,
-        .custom-scrollbar::-webkit-scrollbar { 
-            width: 6px; height: 6px; 
+        /* Custom Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-        .CodeMirror-scroll::-webkit-scrollbar-track, 
-        .xterm-viewport::-webkit-scrollbar-track,
-        .custom-scrollbar::-webkit-scrollbar-track { 
-            background: #050505; 
+        ::-webkit-scrollbar-track {
+            background: #0c0f16; 
         }
-        .CodeMirror-scroll::-webkit-scrollbar-thumb, 
-        .xterm-viewport::-webkit-scrollbar-thumb,
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-            background: #333; border-radius: 3px; 
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+            border: 2px solid #0c0f16; /* Creates padding effect */
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #bef264; /* Lime on hover */
+        }
+
+        /* Specifically for CodeMirror to ensure it takes the custom style */
+        .CodeMirror-scroll::-webkit-scrollbar,
+        .xterm-viewport::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar-track,
+        .xterm-viewport::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar-thumb,
+        .xterm-viewport::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 4px;
+            border: 1px solid #050505;
+        }
+        .CodeMirror-scroll::-webkit-scrollbar-thumb:hover,
+        .xterm-viewport::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
         }
 
         /* Mobile Helper Bar */
@@ -270,6 +294,41 @@
             color: #ef4444;
             border-color: #ef4444;
         }
+
+        /* RESIZER STYLES */
+        #resizer {
+            background-color: rgba(255,255,255,0.05);
+            cursor: col-resize;
+            transition: background-color 0.2s;
+            z-index: 50;
+            display: none; /* hidden on mobile */
+        }
+        #resizer:hover, #resizer.resizing {
+            background-color: var(--accent);
+        }
+        @media (min-width: 768px) {
+            #resizer {
+                display: flex;
+                width: 8px;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        /* Prevent selection during drag */
+        body.resizing {
+            user-select: none;
+            cursor: col-resize;
+        }
+        /* Cover iframes during drag to prevent event stealing */
+        .iframe-shield {
+            position: absolute;
+            inset: 0;
+            z-index: 999;
+            display: none;
+        }
+        body.resizing .iframe-shield {
+            display: block;
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-lime-300 selection:text-black">
@@ -407,10 +466,11 @@
     </header>
 
     <!-- Main Workspace -->
-    <div class="flex-1 flex flex-col md:flex-row min-h-0 z-10 relative">
+    <div id="workspace-container" class="flex-1 flex flex-col md:flex-row min-h-0 z-10 relative">
         
-        <!-- Code Editor -->
-        <div class="flex-1 flex flex-col h-[60%] md:h-auto min-h-0 border-b md:border-b-0 md:border-r border-white/10 relative group">
+        <!-- Code Editor Pane -->
+        <div id="editor-pane" class="flex-1 flex flex-col h-[60%] md:h-auto min-h-0 border-b md:border-b-0 border-white/10 relative group min-w-[200px]">
+            <div class="iframe-shield"></div>
             <div class="bg-black/20 px-4 py-2 text-[10px] font-mono text-lime-300 uppercase border-b border-white/10 flex justify-between items-center shrink-0">
                 <span>SRC // main.c</span>
                 <span class="text-neutral-600">GCC 9.4.0</span>
@@ -443,8 +503,14 @@ int main() {
             </div>
         </div>
 
-        <!-- Terminal -->
-        <div class="flex-1 flex flex-col h-[40%] md:h-auto min-h-0 bg-[#050505]">
+        <!-- Resizer Handle -->
+        <div id="resizer">
+            <i class="fas fa-grip-lines-vertical text-neutral-600 text-xs"></i>
+        </div>
+
+        <!-- Terminal Pane -->
+        <div id="terminal-pane" class="flex-1 flex flex-col h-[40%] md:h-auto min-h-0 bg-[#050505] min-w-[200px]">
+            <div class="iframe-shield"></div>
             <div class="bg-black/20 px-4 py-2 text-[10px] font-mono text-lime-300 uppercase border-b border-white/10 flex justify-between items-center shrink-0">
                 <span>OUT // TERMINAL</span>
                 <div class="flex gap-2">
@@ -525,12 +591,57 @@ int main() {
         const aiCodePreview = document.getElementById('ai-code-preview');
         const aiErrorMsg = document.getElementById('ai-error-msg');
 
+        // Layout Elements
+        const resizer = document.getElementById('resizer');
+        const editorPane = document.getElementById('editor-pane');
+        const terminalPane = document.getElementById('terminal-pane');
+        const workspaceContainer = document.getElementById('workspace-container');
+
         // --- State ---
         let socket = null;
         let currentLine = ""; 
         let startTime = 0;
         let lastSuggestedCode = "";
         let outputBuffer = "";
+
+        // --- Resizer Logic ---
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.classList.add('resizing');
+            resizer.classList.add('resizing');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            // Only resize on desktop (horizontal layout)
+            if (window.innerWidth >= 768) {
+                const containerWidth = workspaceContainer.clientWidth;
+                const newLeftWidth = (e.clientX / containerWidth) * 100;
+                
+                // Constraints (min 20%, max 80%)
+                if (newLeftWidth > 20 && newLeftWidth < 80) {
+                    editorPane.style.flex = `0 0 ${newLeftWidth}%`;
+                    terminalPane.style.flex = `1`;
+                    // Trigger resize for XTerm and CodeMirror
+                    editor.refresh();
+                    fitAddon.fit();
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.classList.remove('resizing');
+                resizer.classList.remove('resizing');
+                editor.refresh();
+                fitAddon.fit();
+            }
+        });
+
 
         // --- CodeMirror Setup ---
         const editor = CodeMirror.fromTextArea(document.getElementById("code-input"), {
@@ -543,6 +654,7 @@ int main() {
             styleActiveLine: true,
             inputStyle: "contenteditable",
             viewportMargin: Infinity,
+            scrollbarStyle: "native", // Explicitly use native for custom styling
             extraKeys: {
                 "Backspace": function(cm) {
                     if (cm.somethingSelected()) {
@@ -562,7 +674,10 @@ int main() {
         });
 
         // Fix resize issues
-        window.addEventListener('resize', () => editor.refresh());
+        window.addEventListener('resize', () => {
+             editor.refresh();
+             fitAddon.fit();
+        });
 
         // Local Auto-Save
         const LOCAL_STORAGE_KEY = 'c_compiler_code_autosave';
@@ -687,9 +802,19 @@ int main() {
                     setTimeout(() => toast.classList.remove('show'), 3000);
                 }
             } else if (sharedCodeOld) {
-                // Fallback for Base64
-                try { editor.setValue(atob(sharedCodeOld)); } 
-                catch(e) {}
+                // Decryption Support: Try LZString first, then fallback to Base64
+                let decoded = null;
+                try {
+                    decoded = LZString.decompressFromEncodedURIComponent(sharedCodeOld);
+                } catch (e) { console.warn("LZString failed:", e); }
+
+                if (!decoded) {
+                    try { decoded = atob(sharedCodeOld); } catch(e) { console.warn("Base64 failed:", e); }
+                }
+
+                if (decoded) {
+                    editor.setValue(decoded);
+                }
             }
             setTimeout(connect, 500); 
         });
@@ -715,8 +840,7 @@ int main() {
         term.loadAddon(fitAddon);
         term.open(document.getElementById('terminal-container'));
         fitAddon.fit();
-        window.addEventListener('resize', () => fitAddon.fit());
-
+        
         // Helper: Get Clean Terminal Output
         function getTerminalContent() {
             if (!term) return "";
@@ -839,7 +963,7 @@ int main() {
             code = injectAutoFlush(code);
 
             startTime = Date.now();
-            term.write('\x1b[32m> gcc main.c -o main && ./main\x1b[0m\r\n');
+            term.write('\x1b[32m> gcc main.c -o main -lm -pthread && ./main\x1b[0m\r\n');
 
             socket.send(JSON.stringify({
                 type: 'run',
@@ -849,8 +973,6 @@ int main() {
             
             term.focus();
         });
-
-        // --- AI Feature Logic ---
 
         // --- AI Feature Logic ---
         askAiLink.addEventListener('click', () => {
