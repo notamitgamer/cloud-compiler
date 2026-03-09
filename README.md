@@ -1,4 +1,4 @@
-# Cloud Code Compiler ☁️ 
+# Cloud Code Compiler
 
 > **A real-time, low-latency code execution platform.** > Built with raw WebSockets, Python `aiohttp`, and a custom C/C++ runner.
 
