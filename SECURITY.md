@@ -25,4 +25,4 @@ Please include as much detail as possible to help us reproduce and fix the issue
 
 This project is a demonstration of cloud compilation technology.
 * **No Sandbox:** Code is currently executed on the host machine.
-* **Liability:** As per the MIT License, this software is provided "as is", without warranty of any kind.
+* **Liability:** As per the [**Apache License 2.0**](https://www.apache.org/licenses/LICENSE-2.0), this software is provided "as is", without warranty of any kind. Developers are responsible for their own implementations.
