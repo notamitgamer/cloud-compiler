@@ -1,3 +1,21 @@
+> [!CAUTION]
+> ## UI BUG: TERMINAL OVERFLOW ON DESKTOP
+> 
+> **Affected Pages:** [C++](https://compiler.amit.is-a.dev/cpp) and [Python](https://compiler.amit.is-a.dev/python).  
+> *(Note: The [C](https://compiler.amit.is-a.dev/c) compiler is currently unaffected.)*
+>
+> **Issue:** On PCs and Tablets, extremely long lines of code push the terminal section completely off-screen to the right. This does not affect mobile users, as the terminal is positioned below the editor.
+>
+> **Planned Fixes:**
+> *   **Auto-Wrap:** Implementing `overflow-wrap` or `white-space: pre-wrap` to keep code within bounds.
+> *   **Resizable Divider:** Adding a draggable slider to manually restore the layout.
+>
+> **Status:** Investigating layout constraints for the C++ and Python environments.
+>
+> **TO DEVELOPERS:**
+> If you'd like to fix this, please **fork the repository**, apply your changes (e.g., CSS wrapping or a divider script), and **submit a Pull Request**. I appreciate the help!
+
+
 # Cloud Code Compiler
 
 > **A real-time, low-latency code execution platform.** > Built with raw WebSockets, Python `aiohttp`, and a custom C/C++ runner.
